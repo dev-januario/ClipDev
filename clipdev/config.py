@@ -9,7 +9,7 @@ APP_ID = "io.github.clipdev.ClipDev"
 APP_NAME = "ClipDev"
 APP_VERSION = "1.0.0"
 
-DBUS_NAME = "io.github.clipdev.ClipDev"
+DBUS_NAME = "io.github.clipdev.ClipDev.Control"
 DBUS_PATH = "/io/github/clipdev/ClipDev"
 
 # --- Retenção ---------------------------------------------------------------
@@ -19,8 +19,14 @@ MAX_UNPINNED = 50
 # --- Popup ------------------------------------------------------------------
 VISIBLE_ROWS = 15      # quantas linhas ficam visíveis sem rolar
 ROW_HEIGHT = 15        # altura de cada linha, em pixels (compacto)
+ROW_BORDER = 1         # separador inferior de cada linha
 POPUP_WIDTH = 380
 POPUP_MARGIN = 6       # margem em relação à borda superior direita
+SEARCH_HEIGHT = 49     # altura estimada da barra de busca (com margens)
+
+# altura da área de lista p/ mostrar VISIBLE_ROWS linhas completas
+LIST_HEIGHT = VISIBLE_ROWS * (ROW_HEIGHT + ROW_BORDER)
+POPUP_HEIGHT = LIST_HEIGHT + SEARCH_HEIGHT
 
 # --- Imagens ----------------------------------------------------------------
 THUMB_SIZE = 64                       # thumbnail armazenada em disco (px)

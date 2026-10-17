@@ -1,0 +1,103 @@
+/* ClipDev — tema escuro (preto #1D212A, azul #0086FF, fixado amarelo #FFC700) */
+
+.clipdev-window {
+    background-color: #1D212A;
+    border: 1px solid #0086FF;
+    border-radius: 8px;
+}
+
+.clipdev-window .search-entry {
+    background-color: #171a21;
+    color: #E6EAF2;
+    border: 1px solid #0086FF;
+    border-radius: 6px;
+    margin: 6px;
+    padding: 3px 8px;
+    min-height: 20px;
+    caret-color: #0086FF;
+}
+
+.clipdev-window .search-entry:focus {
+    border-color: #0086FF;
+    box-shadow: 0 0 0 1px #0086FF inset;
+}
+
+.clipdev-list {
+    background-color: #1D212A;
+}
+
+.clipdev-list row {
+    background-color: #1D212A;
+    min-height: 15px;
+    padding: 0px;
+    border-bottom: 1px solid rgba(0, 134, 255, 0.12);
+}
+
+.clipdev-list row:hover {
+    background-color: #262b36;
+}
+
+.clipdev-list row:selected {
+    background-color: rgba(0, 134, 255, 0.35);
+    border-left: 3px solid #0086FF;
+}
+
+/* Item fixado: amarelo (vence a seleção azul) */
+.clipdev-list row.pinned,
+.clipdev-list row.pinned:selected {
+    border-left: 3px solid #FFC700;
+}
+.clipdev-list row.pinned label,
+.clipdev-list row.pinned:selected label {
+    color: #FFC700;
+}
+.clipdev-list row.pinned .row-icon {
+    color: #FFC700;
+}
+
+.row-label {
+    color: #E6EAF2;
+    font-size: 12px;
+}
+
+.row-icon {
+    color: #0086FF;
+}
+
+.row-sub {
+    color: #8A93A6;
+    font-size: 10px;
+}
+
+/* Botões de ação (aparecem no hover) */
+.row-actions {
+    padding: 0 2px;
+}
+
+.row-actions button {
+    background: transparent;
+    border: none;
+    padding: 0 2px;
+    min-width: 14px;
+    min-height: 14px;
+    color: #8A93A6;
+}
+
+.row-actions button:hover {
+    color: #0086FF;
+    background: rgba(0, 134, 255, 0.15);
+    border-radius: 3px;
+}
+
+.row-actions button.pin-active {
+    color: #FFC700;
+}
+
+scrollbar slider {
+    background-color: rgba(0, 134, 255, 0.5);
+    border-radius: 4px;
+    min-width: 6px;
+}
+scrollbar slider:hover {
+    background-color: #0086FF;
+}

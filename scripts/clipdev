@@ -1,0 +1,18 @@
+#!/usr/bin/python3.10
+"""Launcher do ClipDev.
+
+Fixa o interpretador no python3.10 do sistema (onde o PyGObject/GTK3 vive) e
+garante que o pacote seja importável a partir da raiz do projeto.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from clipdev.__main__ import main  # noqa: E402
+
+if __name__ == "__main__":
+    raise SystemExit(main())
