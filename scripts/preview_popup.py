@@ -51,6 +51,21 @@ def seed(store):
         if pinned:
             store.set_pinned(item_id, True)
 
+    # uma imagem de exemplo (thumbnail na linha)
+    from clipdev import images
+
+    import gi
+
+    gi.require_version("GdkPixbuf", "2.0")
+    from gi.repository import GdkPixbuf
+
+    pb = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 240, 160)
+    pb.fill(0x0086FFFF)
+    ok, buf = pb.save_to_bufferv("png", [], [])
+    if ok:
+        info = images.save_image_bytes(bytes(buf), fmt="png")
+        store.add(st.IMAGE, info["path"], info["thumb"], info["hash"])
+
 
 def main():
     store = st.Store()
