@@ -1,6 +1,6 @@
-"""Script temporário: renderiza o popup com dados de exemplo e salva um PNG.
+"""Renderiza o popup com dados de exemplo e salva um PNG (inspeção visual).
 
-Usado para inspeção visual durante o desenvolvimento. Não faz parte do app.
+Não faz parte do app; usa Gtk.OffscreenWindow para não depender de captura de tela.
 """
 
 import os
@@ -11,53 +11,48 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# store temporário e isolado
 os.environ["CLIPDEV_DATA_DIR"] = tempfile.mkdtemp(prefix="clipdev-preview-")
 
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, GLib, Gtk  # noqa: E402
 
-from clipdev import config, popup, store as st  # noqa: E402
+from clipdev import config, images, popup, store as st  # noqa: E402
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "/tmp/clipdev-popup.png"
 
-SAMPLES = [
-    ("https://github.com/aly/ClipDev", False),
-    ("def calcular_retorno(investimento, taxa):", False),
-    ("Nota fiscal 2026-10 — R$ 1.284,90", False),
-    ("Endereço: Rua das Palmeiras, 342, apto 71", True),   # fixado (amarelo)
-    ("#!/usr/bin/env python3", False),
-    ("Reunião de arquitetura às 14h30 (horário de Brasília)", False),
-    ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB...", False),
-    ("SELECT * FROM items WHERE pinned=1;", False),
-    ("Pix: alys@exemplo.com", False),
-    ("Lorem ipsum dolor sit amet, consectetur adipiscing elit.", False),
-    ("https://news.ycombinator.com/item?id=987654", False),
-    ("sudo apt install gir1.2-ayatanaappindicator3-0.1", False),
-    ("Chave de API: sk-teste-nao-real", False),
-    ("42.001-230 — Rio de Janeiro/RJ", False),
-    ("O último item visível sem rolar", False),
-    ("Item 16 (só aparece ao rolar)", False),
-    ("Item 17 (só aparece ao rolar)", False),
+PINNED = [
+    "Endereço: Rua das Palmeiras, 342, apto 71",
+    "Pix: alys@exemplo.com",
+]
+UNPINNED = [
+    "https://github.com/aly/ClipDev",
+    "def calcular_retorno(investimento, taxa):",
+    "Nota fiscal 2026-10 — R$ 1.284,90",
+    "#!/usr/bin/env python3",
+    "Reunião de arquitetura às 14h30 (horário de Brasília)",
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB...",
+    "SELECT * FROM items WHERE pinned=1;",
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "https://news.ycombinator.com/item?id=987654",
+    "sudo apt install gir1.2-ayatanaappindicator3-0.1",
+    "Chave de API: sk-teste-nao-real",
+    "42.001-230 — Rio de Janeiro/RJ",
+    "O último item visível sem rolar",
 ]
 
 
 def seed(store):
-    for text, pinned in SAMPLES:
+    for text in PINNED:
         h = st.Store.hash_content(text.encode())
         item_id, _ = store.add(st.TEXT, text, text, h)
-        if pinned:
-            store.set_pinned(item_id, True)
+        store.set_pinned(item_id, True)
 
-    # uma imagem de exemplo (thumbnail na linha)
-    from clipdev import images
-
-    import gi
-
-    gi.require_version("GdkPixbuf", "2.0")
-    from gi.repository import GdkPixbuf
+    for text in UNPINNED:
+        h = st.Store.hash_content(text.encode())
+        store.add(st.TEXT, text, text, h)
 
     pb = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 240, 160)
     pb.fill(0x0086FFFF)
@@ -74,7 +69,6 @@ def main():
     win = popup.Popup(store, copy_cb=lambda item: None)
     win.refresh()
 
-    # move o conteúdo para uma janela offscreen e renderiza num pixbuf
     root = win.get_child()
     win.remove(root)
 

@@ -1,19 +1,20 @@
-/* ClipDev — tema escuro (preto #1D212A, azul #0086FF, fixado amarelo #FFC700) */
+/* ClipDev — tema escuro (preto #1D212A, azul #0086FF, fixado #FFC700, vermelho #FF3B30) */
 
 .clipdev-window {
     background-color: #1D212A;
     border: 1px solid #0086FF;
-    border-radius: 8px;
+    border-radius: 10px;
 }
 
+/* ---------- Barra de busca ---------- */
 .clipdev-window .search-entry {
     background-color: #171a21;
     color: #E6EAF2;
     border: 1px solid #0086FF;
-    border-radius: 6px;
-    margin: 6px;
-    padding: 3px 8px;
-    min-height: 20px;
+    border-radius: 8px;
+    margin: 8px 8px 4px 8px;
+    padding: 4px 10px;
+    min-height: 24px;
     caret-color: #0086FF;
 }
 
@@ -22,15 +23,15 @@
     box-shadow: 0 0 0 1px #0086FF inset;
 }
 
+/* ---------- Lista ---------- */
 .clipdev-list {
     background-color: #1D212A;
 }
 
 .clipdev-list row {
     background-color: #1D212A;
-    min-height: 15px;
+    min-height: 30px;
     padding: 0px;
-    border-bottom: 1px solid rgba(0, 134, 255, 0.12);
 }
 
 .clipdev-list row:hover {
@@ -38,65 +39,111 @@
 }
 
 .clipdev-list row:selected {
-    background-color: rgba(0, 134, 255, 0.35);
-    border-left: 3px solid #0086FF;
+    background-color: rgba(0, 134, 255, 0.18);
 }
 
-/* Item fixado: amarelo (vence a seleção azul) */
-.clipdev-list row.pinned,
-.clipdev-list row.pinned:selected {
-    border-left: 3px solid #FFC700;
+/* Barra vertical colorida à esquerda (o "| |" do layout) */
+.pin-bar {
+    min-width: 3px;
+    background-color: transparent;
 }
-.clipdev-list row.pinned label,
-.clipdev-list row.pinned:selected label {
-    color: #FFC700;
-}
-.clipdev-list row.pinned .row-icon {
-    color: #FFC700;
+.pin-bar.pinned {
+    background-color: #FFC700;
 }
 
+/* ---------- Rótulos ---------- */
 .row-label {
     color: #E6EAF2;
-    font-size: 12px;
+    font-size: 13px;
+}
+.row-label.pinned {
+    color: #FFC700;
 }
 
-.row-icon {
-    color: #0086FF;
-}
-
-.row-sub {
+/* ---------- Cabeçalho de seção ---------- */
+.section-header {
     color: #8A93A6;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 3px 8px 1px 8px;
 }
 
-/* Botões de ação (aparecem no hover) */
-.row-actions {
-    padding: 0 2px;
-}
-
+/* ---------- Botões de linha (hover) ---------- */
 .row-actions button {
     background: transparent;
     border: none;
     padding: 0 2px;
-    min-width: 14px;
-    min-height: 14px;
+    min-width: 22px;
+    min-height: 22px;
     color: #8A93A6;
 }
-
 .row-actions button:hover {
-    color: #0086FF;
     background: rgba(0, 134, 255, 0.15);
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
-.row-actions button.pin-active {
-    color: #FFC700;
+/* Ícones com estado */
+.icon-star        { color: #8A93A6; }
+.icon-star.pinned { color: #FFC700; }
+.icon-action      { color: #8A93A6; }
+.icon-action:hover { color: #0086FF; }
+
+/* ---------- Rodapé / toolbar ---------- */
+.clipdev-footer {
+    background-color: #171a21;
+    padding: 4px 8px 6px 8px;
+    border-top: 1px solid rgba(0, 134, 255, 0.25);
 }
 
+.footer-label {
+    color: #8A93A6;
+    font-size: 12px;
+}
+
+.footer-button {
+    background: rgba(0, 134, 255, 0.12);
+    border: 1px solid rgba(0, 134, 255, 0.45);
+    border-radius: 6px;
+    color: #E6EAF2;
+    padding: 2px 10px;
+    min-height: 22px;
+}
+.footer-button:hover {
+    background: rgba(0, 134, 255, 0.28);
+    border-color: #0086FF;
+}
+.footer-button.danger:hover {
+    background: rgba(255, 59, 48, 0.25);
+    border-color: #FF3B30;
+}
+
+/* ---------- Preferências ---------- */
+.prefs-window {
+    background-color: #1D212A;
+    border: 1px solid #0086FF;
+    border-radius: 10px;
+}
+.prefs-title {
+    color: #E6EAF2;
+    font-size: 14px;
+    font-weight: bold;
+}
+.prefs-label {
+    color: #8A93A6;
+    font-size: 12px;
+}
+.prefs-value {
+    color: #0086FF;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 42px;
+}
+
+/* ---------- Scrollbar ---------- */
 scrollbar slider {
     background-color: rgba(0, 134, 255, 0.5);
     border-radius: 4px;
-    min-width: 6px;
+    min-width: 7px;
 }
 scrollbar slider:hover {
     background-color: #0086FF;

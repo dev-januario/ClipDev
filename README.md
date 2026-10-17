@@ -11,11 +11,16 @@ na barra superior (perto do Wi-Fi) e abertura por atalho **Super+V**.
 - Atalho global **Super+V** para abrir/fechar o histórico.
 - Histórico persistente de **até 50 itens não-fixados** (os mais antigos saem
   primeiro). Itens **fixados nunca são apagados**.
-- Suporta **texto e imagens** (imagens são salvas em disco + thumbnail, e podem
-  ser copiadas de volta).
+- Suporta **texto e imagens** (imagens salvas em disco + thumbnail, e podem ser
+  copiadas de volta).
 - Dedup automático: copiar algo que já existe promove o item ao topo.
-- Busca/filtro no popup; lista com **15 linhas visíveis** (compactas, 15px) e
-  barra de rolagem para os demais.
+- **Seções** "Fixados" e "Não fixados" na lista.
+- Cada item tem **estrela para fixar** (cinza → amarela quando fixada).
+- Barra vertical colorida à esquerda de cada item (amarela nos fixados).
+- **Busca/filtro** no popup; **15 linhas visíveis** (rolagem para as demais).
+- **Tamanho da fonte ajustável** (botões `−`/`+` no rodapé e na janela de
+  Preferências) — a altura da linha acompanha.
+- Botão **Limpar não fixados** no rodapé.
 - Tema escuro: fundo `#1D212A`, azul `#0086FF`, fixados em amarelo `#FFC700`.
 
 ## Requisitos
@@ -45,6 +50,20 @@ habilita o autostart no login. Depois:
 clipdev run &     # inicia agora (ou apenas aperte Super+V)
 ```
 
+### Se o Super+V não funcionar de imediato
+
+O GNOME (`gsd-media-keys`) às vezes não recarrega atalhos recém-criados, e um
+clipboard manager antigo (ex.: **Diodon**) pode estar segurando `<Super>v`. Nesse
+caso:
+
+```bash
+# ver se outro app ocupa o Super+V
+gsettings list-recursively | grep "'<Super>v'"
+
+# recarregar o serviço de atalhos (ou simplesmente faça logout/login)
+killall gsd-media-keys    # o GNOME sobe de novo automaticamente
+```
+
 ## Uso
 
 | Comando                     | O que faz                                   |
@@ -62,7 +81,17 @@ No popup:
 
 - **Digitar** filtra; **↑/↓** navega; **Enter** copia; **Delete** exclui; **Esc** fecha.
 - **Clique** copia o item (depois use Ctrl+V).
-- No **hover** aparecem os botões: copiar, fixar/desafixar (amarelo) e excluir.
+- No **hover** aparecem os botões: **estrela** (fixar/desafixar), copiar e excluir.
+- Rodapé: **−/+** ajustam a fonte, **⚙** abre Preferências e **Limpar não fixados**
+  apaga o histórico não fixado.
+
+### Sobre o clique no ícone
+
+No GNOME 42, a extensão que desenha os ícones de app (`ubuntu-appindicators`)
+**sempre abre o menu** no clique esquerdo simples — é uma limitação da extensão,
+não do ClipDev. Para abrir o histórico diretamente use o **Super+V** (ou o
+duplo-clique no ícone). O menu do ícone traz atalhos para Preferências, Limpar e
+Sair.
 
 ## Estrutura
 
@@ -72,10 +101,11 @@ clipdev/            # pacote principal
   clipboard.py      # monitor do clipboard (texto e imagem)
   store.py          # persistência SQLite (dedup, pin, retenção)
   images.py         # salva imagem + thumbnail
-  popup.py          # janela do histórico (tema, 15px/linha)
+  popup.py          # janela do histórico (seções, estrela, fonte, rodapé)
+  prefs.py          # janela de preferências
   indicator.py      # ícone na barra (AppIndicator)
   shortcut.py       # atalho global Super+V (GSettings)
-  dbus_service.py   # controle por DBus (toggle/open/quit)
+  dbus_service.py   # controle por DBus (toggle/open/clear/quit)
   autostart.py      # inicialização no login
   style.css         # tema
   icons/clipdev.svg # ícone
@@ -91,8 +121,8 @@ docs/superpowers/specs/  # spec de design
 python3.10 scripts/preview_popup.py  # gera um PNG de preview do popup
 ```
 
-Os dados ficam em `~/.local/share/clipdev/` (banco + imagens). Para usar outro
-diretório (ex.: em testes): `export CLIPDEV_DATA_DIR=/tmp/algum`.
+Os dados ficam em `~/.local/share/clipdev/` (banco, imagens e `settings.json`).
+Para usar outro diretório (ex.: em testes): `export CLIPDEV_DATA_DIR=/tmp/algum`.
 
 ## Desinstalação
 

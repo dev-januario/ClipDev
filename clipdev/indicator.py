@@ -1,12 +1,21 @@
 """Indicador na barra superior (AyatanaAppIndicator3).
 
-Fornece o ícone perto do Wi-Fi, com menu (Abrir histórico, Limpar não-fixados,
-Sair). Requer o typelib GIR ``gir1.2-ayatanaappindicator3-0.1``.
+Observação importante sobre o GNOME 42:
+    A extensão `ubuntu-appindicators` exige que o item tenha um *menu* para
+    exibir o ícone (a propriedade ``isReady`` depende de ``menuPath``). Além
+    disso, o **clique esquerdo simples sempre abre esse menu** — é uma limitação
+    da própria extensão, não do ClipDev.
+
+    Por isso:
+      * O menu é mantido (necessário para o ícone existir) e é útil/temático.
+      * O **duplo-clique** e o **clique do meio** chamam ``Activate``, que
+        configuramos para abrir o histórico diretamente.
+      * O atalho **Super+V** também abre o histórico diretamente.
 """
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable
 
 import gi
 
@@ -26,11 +35,6 @@ class IndicatorUnavailable(RuntimeError):
 
 
 def _load_appindicator():
-    """Importa o namespace do AppIndicator sob demanda (lazy).
-
-    Assim, o restante do app (clipboard, popup, DBus/atalho) funciona mesmo
-    sem o typelib GIR instalado.
-    """
     try:
         gi.require_version("AyatanaAppIndicator3", "0.1")
         from gi.repository import AyatanaAppIndicator3 as AppIndicator
@@ -52,11 +56,13 @@ class Indicator:
         self,
         on_open: Callable[[], None],
         on_clear: Callable[[], None],
+        on_prefs: Callable[[], None],
         on_quit: Callable[[], None],
     ) -> None:
         AppIndicator = _load_appindicator()
         self.on_open = on_open
         self.on_clear = on_clear
+        self.on_prefs = on_prefs
         self.on_quit = on_quit
 
         icon = str(config.icon_path()) if config.icon_path().exists() else "edit-copy"
@@ -72,7 +78,8 @@ class Indicator:
 
         self.menu = self._build_menu()
         self.indicator.set_menu(self.menu)
-        # clique do meio abre o popup (quando suportado)
+
+        # duplo-clique / clique do meio -> abrir o histórico diretamente
         try:
             self.indicator.set_secondary_activate_target(self._open_item)
         except Exception:
@@ -81,11 +88,19 @@ class Indicator:
     def _build_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
 
+        # item usado como "alvo de ativação" (duplo-clique / clique do meio)
         self._open_item = Gtk.MenuItem(label="Abrir histórico")
         self._open_item.connect("activate", lambda *_: self.on_open())
-        menu.append(self._open_item)
 
-        clear_item = Gtk.MenuItem(label="Limpar não-fixados")
+        open_item = Gtk.MenuItem(label="Abrir histórico (Super+V)")
+        open_item.connect("activate", lambda *_: self.on_open())
+        menu.append(open_item)
+
+        prefs_item = Gtk.MenuItem(label="Preferências")
+        prefs_item.connect("activate", lambda *_: self.on_prefs())
+        menu.append(prefs_item)
+
+        clear_item = Gtk.MenuItem(label="Limpar não fixados")
         clear_item.connect("activate", lambda *_: self.on_clear())
         menu.append(clear_item)
 

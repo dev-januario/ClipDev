@@ -1,4 +1,4 @@
-"""Aplicação ClipDev: junta store, monitor, popup, indicador e DBus."""
+"""Aplicação ClipDev: junta store, monitor, popup, preferências, indicador e DBus."""
 
 from __future__ import annotations
 
@@ -11,7 +11,15 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib, Gtk  # noqa: E402
 
-from . import clipboard, config, dbus_service, indicator, popup, store as st  # noqa: E402
+from . import (  # noqa: E402
+    clipboard,
+    config,
+    dbus_service,
+    indicator,
+    popup,
+    prefs,
+    store as st,
+)
 
 
 class ClipDevApp(Gtk.Application):
@@ -20,6 +28,7 @@ class ClipDevApp(Gtk.Application):
         self.store = st.Store()
         self.monitor: Optional[clipboard.ClipboardMonitor] = None
         self.popup: Optional[popup.Popup] = None
+        self.prefs: Optional[prefs.PreferencesWindow] = None
         self.indicator: Optional[indicator.Indicator] = None
         self.dbus: Optional[dbus_service.DbusService] = None
         self._bus_id: int = 0
@@ -29,7 +38,13 @@ class ClipDevApp(Gtk.Application):
         if self.popup is not None:
             return
 
-        self.popup = popup.Popup(self.store, copy_cb=self._copy_item, on_quit=self._quit)
+        self.popup = popup.Popup(
+            self.store,
+            copy_cb=self._copy_item,
+            on_clear=self._clear_unpinned,
+            on_prefs=self._open_prefs,
+            on_font_change=self._on_font_change,
+        )
 
         self.monitor = clipboard.ClipboardMonitor(self.store)
         self.monitor.connect("captured", self._on_captured)
@@ -40,6 +55,7 @@ class ClipDevApp(Gtk.Application):
             self.indicator = indicator.Indicator(
                 on_open=self._open_popup,
                 on_clear=self._clear_unpinned,
+                on_prefs=self._open_prefs,
                 on_quit=self._quit,
             )
         except indicator.IndicatorUnavailable as exc:
@@ -48,7 +64,10 @@ class ClipDevApp(Gtk.Application):
 
         # DBus: assume o nome e registra o objeto
         self.dbus = dbus_service.DbusService(
-            on_toggle=self._toggle_popup, on_open=self._open_popup, on_quit=self._quit
+            on_toggle=self._toggle_popup,
+            on_open=self._open_popup,
+            on_clear=self._clear_unpinned,
+            on_quit=self._quit,
         )
         self._bus_id = Gio.bus_own_name(
             Gio.BusType.SESSION,
@@ -96,6 +115,23 @@ class ClipDevApp(Gtk.Application):
         self.store.clear_unpinned()
         if self.popup is not None and self.popup.get_visible():
             self.popup.refresh()
+
+    def _open_prefs(self) -> None:
+        if self.popup is None:
+            return
+        if self.prefs is None:
+            self.prefs = prefs.PreferencesWindow(
+                self.popup.get_font_size(), on_font_change=self._on_font_change
+            )
+        else:
+            self.prefs.value.set_text(str(self.popup.get_font_size()))
+        self.prefs.open()
+
+    def _on_font_change(self, size: int) -> None:
+        if self.popup is not None:
+            self.popup._apply_font_size(size, save=True)
+        if self.prefs is not None:
+            self.prefs.value.set_text(str(config.clamp_font(size)))
 
     def _quit(self) -> None:
         if self._bus_id:

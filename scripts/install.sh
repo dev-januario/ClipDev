@@ -32,6 +32,13 @@ echo "comando criado: $BIN_DIR/clipdev"
 "$PY" -m clipdev install-shortcut || true
 "$PY" -m clipdev autostart-install || true
 
+# 5) Recarrega o serviço de atalhos do GNOME para o Super+V valer já
+#    (o gsd-media-keys volta sozinho; sem isso o atalho só pega no próximo login)
+if pgrep -x gsd-media-keys >/dev/null 2>&1; then
+  killall gsd-media-keys 2>/dev/null || true
+  echo "serviço de atalhos recarregado (gsd-media-keys)"
+fi
+
 echo
 echo "Pronto. Para iniciar agora:"
 echo "  clipdev run &        (ou apenas aperte Super+V)"

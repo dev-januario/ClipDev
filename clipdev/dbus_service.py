@@ -21,6 +21,7 @@ _INTROSPECTION = """
   <interface name='io.github.clipdev.ClipDev'>
     <method name='Toggle'/>
     <method name='Open'/>
+    <method name='Clear'/>
     <method name='Quit'/>
   </interface>
 </node>
@@ -32,10 +33,12 @@ class DbusService:
         self,
         on_toggle: Callable[[], None],
         on_open: Callable[[], None],
+        on_clear: Callable[[], None],
         on_quit: Callable[[], None],
     ):
         self.on_toggle = on_toggle
         self.on_open = on_open
+        self.on_clear = on_clear
         self.on_quit = on_quit
         self._reg_id: int = 0
         self._node_info = Gio.DBusNodeInfo.new_for_xml(_INTROSPECTION)
@@ -56,6 +59,9 @@ class DbusService:
             invocation.return_value(None)
         elif method == "Open":
             GLib.idle_add(lambda: self.on_open() or False)
+            invocation.return_value(None)
+        elif method == "Clear":
+            GLib.idle_add(lambda: self.on_clear() or False)
             invocation.return_value(None)
         elif method == "Quit":
             GLib.idle_add(lambda: self.on_quit() or False)
