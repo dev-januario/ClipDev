@@ -12,14 +12,16 @@ na barra superior (perto do Wi-Fi) e abertura por atalho **Super+V**.
 - Histórico persistente de **até 50 itens não-fixados** (os mais antigos saem
   primeiro). Itens **fixados nunca são apagados**.
 - Suporta **texto e imagens** (imagens salvas em disco + thumbnail, e podem ser
-  copiadas de volta).
+  copiadas de volta). Na lista, a imagem aparece como **prévia quadrada de
+  30×30px** (nunca a imagem inteira).
 - Dedup automático: copiar algo que já existe promove o item ao topo.
 - **Seções** "Fixados" e "Não fixados" na lista.
 - Cada item tem **estrela para fixar** (cinza → amarela quando fixada).
 - Barra vertical colorida à esquerda de cada item (amarela nos fixados).
-- **Busca/filtro** no popup; **15 linhas visíveis** (rolagem para as demais).
-- **Tamanho da fonte ajustável** (botões `−`/`+` no rodapé e na janela de
-  Preferências) — a altura da linha acompanha.
+- **Busca/filtro** no popup; **15 linhas visíveis** de **40px** (rolagem para as
+  demais).
+- **Tamanho da fonte ajustável** (padrão **14px**; botões `−`/`+` no rodapé e na
+  janela de Preferências) — a altura da linha acompanha.
 - Botão **Limpar não fixados** no rodapé.
 - Tema escuro: fundo `#1D212A`, azul `#0086FF`, fixados em amarelo `#FFC700`.
 

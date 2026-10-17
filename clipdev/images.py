@@ -66,6 +66,30 @@ def make_thumbnail(pb: GdkPixbuf.Pixbuf, size: int = config.THUMB_SIZE) -> GdkPi
     return pb.scale_simple(tw, th, GdkPixbuf.InterpType.BILINEAR)
 
 
+def preview_pixbuf(source, size: int = config.ROW_THUMB_SIZE) -> Optional[GdkPixbuf.Pixbuf]:
+    """Carrega ``source`` (caminho de imagem/thumbnail) num pixbuf QUADRADO
+    de ``size``×``size`` (com barras transparentes), para usar como prévia
+    compacta na linha. Nunca amplia além de ``size``.
+    """
+    try:
+        pb = GdkPixbuf.Pixbuf.new_from_file(str(source))
+    except Exception:
+        return None
+    w, h = pb.get_width(), pb.get_height()
+    if w <= 0 or h <= 0:
+        return None
+    scale = min(size / w, size / h, 1.0)
+    tw, th = max(1, int(round(w * scale))), max(1, int(round(h * scale)))
+    scaled = pb.scale_simple(tw, th, GdkPixbuf.InterpType.BILINEAR)
+    canvas = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, size, size)
+    canvas.fill(0x00000000)
+    scaled.composite(
+        canvas, 0, 0, size, size, 0, 0, 1.0, 1.0,
+        GdkPixbuf.InterpType.BILINEAR, 255,
+    )
+    return canvas
+
+
 def save_image_bytes(
     data: bytes,
     fmt: Optional[str] = None,

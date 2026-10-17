@@ -19,7 +19,7 @@ MAX_UNPINNED = 50
 
 # --- Popup ------------------------------------------------------------------
 VISIBLE_ROWS = 15          # quantas linhas ficam visíveis sem rolar
-ROW_HEIGHT = 30            # altura de cada linha, em pixels
+ROW_HEIGHT = 40            # altura de cada linha, em pixels
 ROW_BORDER = 0             # separador inferior (sem borda; espaçamento via CSS)
 POPUP_WIDTH = 440
 POPUP_MARGIN = 6           # margem em relação à borda superior direita
@@ -30,11 +30,12 @@ POPUP_HEIGHT = VISIBLE_ROWS * (ROW_HEIGHT + ROW_BORDER) + SEARCH_HEIGHT
 # --- Fonte ------------------------------------------------------------------
 FONT_MIN = 8
 FONT_MAX = 20
-FONT_DEFAULT = 13          # tamanho de fonte padrão (px)
+FONT_DEFAULT = 14          # tamanho de fonte padrão (px)
 
 # --- Imagens ----------------------------------------------------------------
 THUMB_SIZE = 128                      # thumbnail armazenada em disco (px)
-ROW_THUMB_SIZE = 22                   # thumbnail desenhada na linha (px, cabe em 30px)
+ROW_ICON_SIZE = 30                    # ícone de texto na linha (px)
+ROW_THUMB_SIZE = 30                   # prévia quadrada da imagem na linha (px)
 MAX_IMAGE_BYTES = 10 * 1024 * 1024    # 10 MB por imagem
 
 # --- Paleta -----------------------------------------------------------------

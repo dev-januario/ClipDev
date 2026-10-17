@@ -27,7 +27,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
-from . import config, store as st  # noqa: E402
+from . import config, images, store as st  # noqa: E402
 
 CopyCallback = Callable[[Dict], None]
 
@@ -92,7 +92,8 @@ class Popup(Gtk.Window):
 
     def _apply_font_size(self, size: int, save: bool = True) -> None:
         self._font_size = config.clamp_font(size)
-        row_h = max(config.ROW_HEIGHT, self._font_size + 16)
+        # a altura da linha acompanha a fonte, com piso em ROW_HEIGHT (40px)
+        row_h = max(config.ROW_HEIGHT, self._font_size + 26)
         css = (
             f".row-label {{ font-size: {self._font_size}px; }}\n"
             f".clipdev-list row {{ min-height: {row_h}px; }}\n"
@@ -301,15 +302,13 @@ class Popup(Gtk.Window):
 
     def _build_leading_icon(self, item: Dict) -> Gtk.Widget:
         if item["kind"] == st.IMAGE:
-            try:
-                img = Gtk.Image.new_from_file(item["preview"])
-                img.set_pixel_size(config.ROW_THUMB_SIZE)
-                return img
-            except Exception:
-                pass
+            # prévia quadrada fixa (30x30): a imagem inteira NÃO é exibida
+            pb = images.preview_pixbuf(item["preview"], config.ROW_THUMB_SIZE)
+            if pb is not None:
+                return Gtk.Image.new_from_pixbuf(pb)
         icon = Gtk.Image.new_from_icon_name("text-x-generic-symbolic", Gtk.IconSize.MENU)
         icon.get_style_context().add_class("icon-action")
-        icon.set_pixel_size(config.ROW_THUMB_SIZE)
+        icon.set_pixel_size(config.ROW_ICON_SIZE)
         return icon
 
     @staticmethod

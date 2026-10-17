@@ -47,6 +47,7 @@
     min-width: 3px;
     background-color: transparent;
 }
+
 .pin-bar.pinned {
     background-color: #FFC700;
 }
@@ -54,8 +55,9 @@
 /* ---------- Rótulos ---------- */
 .row-label {
     color: #E6EAF2;
-    font-size: 13px;
+    font-size: 14px;
 }
+
 .row-label.pinned {
     color: #FFC700;
 }
@@ -63,7 +65,7 @@
 /* ---------- Cabeçalho de seção ---------- */
 .section-header {
     color: #8A93A6;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     padding: 3px 8px 1px 8px;
 }
@@ -77,16 +79,28 @@
     min-height: 22px;
     color: #8A93A6;
 }
+
 .row-actions button:hover {
     background: rgba(0, 134, 255, 0.15);
     border-radius: 4px;
 }
 
 /* Ícones com estado */
-.icon-star        { color: #8A93A6; }
-.icon-star.pinned { color: #FFC700; }
-.icon-action      { color: #8A93A6; }
-.icon-action:hover { color: #0086FF; }
+.icon-star {
+    color: #8A93A6;
+}
+
+.icon-star.pinned {
+    color: #FFC700;
+}
+
+.icon-action {
+    color: #8A93A6;
+}
+
+.icon-action:hover {
+    color: #0086FF;
+}
 
 /* ---------- Rodapé / toolbar ---------- */
 .clipdev-footer {
@@ -97,7 +111,7 @@
 
 .footer-label {
     color: #8A93A6;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .footer-button {
@@ -108,10 +122,12 @@
     padding: 2px 10px;
     min-height: 22px;
 }
+
 .footer-button:hover {
     background: rgba(0, 134, 255, 0.28);
     border-color: #0086FF;
 }
+
 .footer-button.danger:hover {
     background: rgba(255, 59, 48, 0.25);
     border-color: #FF3B30;
@@ -123,15 +139,18 @@
     border: 1px solid #0086FF;
     border-radius: 10px;
 }
+
 .prefs-title {
     color: #E6EAF2;
     font-size: 14px;
     font-weight: bold;
 }
+
 .prefs-label {
     color: #8A93A6;
-    font-size: 12px;
+    font-size: 13px;
 }
+
 .prefs-value {
     color: #0086FF;
     font-size: 14px;
@@ -145,6 +164,7 @@ scrollbar slider {
     border-radius: 4px;
     min-width: 7px;
 }
+
 scrollbar slider:hover {
     background-color: #0086FF;
 }

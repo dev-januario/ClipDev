@@ -71,3 +71,32 @@ def test_rejects_oversize(tmp_path, monkeypatch):
         assert False, "deveria lançar ImageTooLargeError"
     except images.ImageTooLargeError:
         pass
+
+
+def test_preview_is_square(tmp_path, monkeypatch):
+    """A prévia da linha deve ser sempre quadrada (30x30), não a imagem inteira."""
+    monkeypatch.setenv("CLIPDEV_DATA_DIR", str(tmp_path))
+    for w, h in [(800, 600), (300, 900), (120, 80)]:
+        info = images.save_image_bytes(_png_bytes(w, h), fmt="png")
+        pv = images.preview_pixbuf(info["thumb"], config.ROW_THUMB_SIZE)
+        assert pv is not None
+        assert pv.get_width() == config.ROW_THUMB_SIZE
+        assert pv.get_height() == config.ROW_THUMB_SIZE
+
+
+def test_preview_has_alpha(tmp_path, monkeypatch):
+    """Imagem larga deve caber com barras transparentes (canal alpha)."""
+    monkeypatch.setenv("CLIPDEV_DATA_DIR", str(tmp_path))
+    info = images.save_image_bytes(_png_bytes(400, 100), fmt="png")
+    pv = images.preview_pixbuf(info["thumb"], 30)
+    assert pv.get_has_alpha() is True
+
+
+def test_preview_invalid_returns_none(tmp_path):
+    assert images.preview_pixbuf(str(tmp_path / "naoexiste.png"), 30) is None
+
+
+def test_preview_size_matches_config():
+    assert config.ROW_THUMB_SIZE == 30
+    assert config.ROW_HEIGHT == 40
+    assert config.FONT_DEFAULT == 14
