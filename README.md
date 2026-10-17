@@ -1,62 +1,352 @@
 # ClipDev
 
-Gerenciador de área de transferência (clipboard) para GNOME/Ubuntu, com ícone
-na barra superior (perto do Wi-Fi) e abertura por atalho **Super+V**.
+Gerenciador de área de transferência (**clipboard**) para GNOME/Ubuntu, com
+ícone na barra superior (perto do Wi‑Fi) e abertura por atalho global **Super+V**.
 
 ![tema](docs/preview.png)
 
+- **Versão:** 1.1.0
+- **App ID:** `io.github.clipdev.ClipDev`
+- **Ambiente alvo:** Ubuntu 22.04 / GNOME 42, sessão **X11**
+- **Stack:** Python 3.10 (sistema) + PyGObject + GTK3 + SQLite + DBus + GSettings
+
+## Índice
+
+- [Visão geral](#visão-geral)
+- [Recursos](#recursos)
+- [Requisitos](#requisitos)
+- [Instalação (passo a passo)](#instalação-passo-a-passo)
+- [Primeiros passos](#primeiros-passos)
+- [Comandos da CLI](#comandos-da-cli)
+- [Usando o popup](#usando-o-popup)
+- [Ícone na barra](#ícone-na-barra)
+- [Preferências](#preferências)
+- [API DBus](#api-dbus)
+- [Onde os dados ficam](#onde-os-dados-ficam)
+- [Configuração (constantes)](#configuração-constantes)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Desenvolvimento e testes](#desenvolvimento-e-testes)
+- [Solução de problemas](#solução-de-problemas)
+- [Desinstalação](#desinstalação)
+
+---
+
+## Visão geral
+
+O ClipDev roda como um **processo único** (`Gtk.Application`) em Python 3.10 +
+GTK3. Ele observa a área de transferência, persiste tudo em **SQLite**, mostra um
+**popup** de histórico com busca e itens fixáveis, desenha um **ícone** no painel
+superior e responde ao atalho global **Super+V** (via GSettings → DBus).
+
+```
+ClipboardMonitor ──► Store (SQLite) ──► images/ (originais + thumbnails)
+      │                    │
+      ▼                    ▼
+Popup (Gtk.Window) ◄── DBus toggle ◄── Super+V (GSettings keybinding)
+Indicator (AyatanaAppIndicator3) ──► Menu (abrir / limpar / preferências / sair)
+```
+
 ## Recursos
 
-- Ícone no painel superior direito (AppIndicator).
+- Ícone no painel superior direito (**AyatanaAppIndicator3**).
 - Atalho global **Super+V** para abrir/fechar o histórico.
-- Histórico persistente de **até 50 itens não-fixados** (os mais antigos saem
-  primeiro). Itens **fixados nunca são apagados**.
-- Suporta **texto e imagens** (imagens salvas em disco + thumbnail, e podem ser
-  copiadas de volta). Na lista, a imagem aparece como **prévia quadrada de
-  30×30px** (nunca a imagem inteira).
-- Dedup automático: copiar algo que já existe promove o item ao topo.
-- **Seções** "Fixados" e "Não fixados" na lista.
-- Cada item tem **estrela para fixar** (cinza → amarela quando fixada).
-- Barra vertical colorida à esquerda de cada item (amarela nos fixados).
+- Histórico persistente de **até 50 itens não-fixados** (`MAX_UNPINNED = 50`),
+  configurável. Os mais antigos saem primeiro; itens **fixados nunca são
+  apagados**.
+- Suporta **texto e imagens**. Imagens são salvas em disco (original + thumbnail)
+  e podem ser copiadas de volta.
+- Na lista, a imagem aparece como **prévia quadrada de 30×30px** (nunca a imagem
+  inteira).
+- **Dedup automático**: copiar algo que já existe promove o item ao topo, sem
+  duplicar.
+- **Seções** “Fixados” e “Não fixados”.
+- Cada item tem **estrela para fixar** (cinza → amarela) e **barra vertical
+  colorida** à esquerda (amarela nos fixados).
 - **Busca/filtro** no popup; **15 linhas visíveis** de **40px** (rolagem para as
   demais).
-- **Tamanho da fonte ajustável** (padrão **14px**; botões `−`/`+` no rodapé e na
-  janela de Preferências) — a altura da linha acompanha.
+- **Tamanho da fonte ajustável** (padrão **14px**; de **8** a **20px**) pelos
+  botões `−`/`+` no rodapé e na janela de Preferências — a altura da linha
+  acompanha.
 - Botão **Limpar não fixados** no rodapé.
 - Tema escuro: fundo `#1D212A`, azul `#0086FF`, fixados em amarelo `#FFC700`.
+- **Autostart** no login e controle por **DBus**.
 
 ## Requisitos
 
-- Ubuntu 22.04 / GNOME 42 (testado), sessão X11.
-- `/usr/bin/python3.10` com `python3-gi` e `gir1.2-gtk-3.0` (já vêm no Ubuntu).
-- `gir1.2-ayatanaappindicator3-0.1` — **necessário** para o ícone na barra:
+- **Ubuntu 22.04 / GNOME 42** (testado), sessão **X11**.
+- `/usr/bin/python3.10` com **PyGObject** e **GTK3** (`python3-gi`,
+  `gir1.2-gtk-3.0`) — já vêm no Ubuntu.
+- **`gir1.2-ayatanaappindicator3-0.1`** — necessário para o **ícone na barra**.
+- Extensão **`ubuntu-appindicators@ubuntu.com`** ativa no GNOME (para desenhar o
+  ícone).
+- `sqlite3`, `Gio.DBus` e `Gdk` (todos disponíveis por padrão).
 
-  ```bash
-  sudo apt install gir1.2-ayatanaappindicator3-0.1
-  ```
+> **Importante:** o projeto usa o `python3.10` do **sistema** porque é ele que
+> tem o PyGObject. Se o seu `python3` do PATH for outro (ex.: 3.11 via pyenv),
+> não afeta — o launcher fixa `/usr/bin/python3.10`.
 
-> Observação: o projeto usa o `python3.10` do **sistema** porque é ele que tem o
-> PyGObject. Se o seu `python3` do PATH for outro (ex.: 3.11 via pyenv), não
-> afeta — o launcher fixa `/usr/bin/python3.10`.
+## Instalação (passo a passo)
 
-## Instalação
+### 1. Pré-requisitos do sistema
+
+```bash
+sudo apt update
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1
+```
+
+Confirme que a extensão de ícones do GNOME está ativa:
+
+```bash
+gnome-extensions list --enabled | grep appindicators
+```
+
+### 2. Obtenha o código
+
+```bash
+git clone <url-do-repositório> ClipDev
+cd ClipDev
+```
+
+### 3. Rode o instalador
 
 ```bash
 ./scripts/install.sh
 ```
 
-Isso cria o comando `~/.local/bin/clipdev`, registra o atalho `Super+V` e
-habilita o autostart no login. Depois:
+O `install.sh` faz, em ordem:
+
+1. Verifica se o typelib do **AyatanaAppIndicator3** está presente (avisa se
+   faltar).
+2. Valida a sanidade do **PyGObject/GTK3** em `/usr/bin/python3.10` (aborta se
+   faltar).
+3. Cria o comando **`~/.local/bin/clipdev`** (symlink para `scripts/clipdev`) e
+   o marca como executável.
+4. Registra o atalho **Super+V** (`clipdev install-shortcut`).
+5. Habilita o **autostart** no login (`clipdev autostart-install`).
+6. Recarrega o serviço de atalhos do GNOME (`gsd-media-keys`) para o Super+V
+   valer imediatamente.
+
+### 4. Garanta que `~/.local/bin` está no PATH
+
+Se o comando `clipdev` não for encontrado, adicione ao `~/.bashrc`:
 
 ```bash
-clipdev run &     # inicia agora (ou apenas aperte Super+V)
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Se o Super+V não funcionar de imediato
+### 5. Inicie o ClipDev
+
+```bash
+clipdev run &     # inicia agora (ou simplesmente aperte Super+V)
+```
+
+### 6. Verifique a instalação
+
+```bash
+clipdev status
+```
+
+Saída esperada:
+
+```
+Daemon rodando: sim
+Atalho instalado: sim
+Autostart: sim
+Ícone (AppIndicator): disponível
+```
+
+## Primeiros passos
+
+1. Copie qualquer coisa (Ctrl+C) — o ClipDev captura automaticamente.
+2. Aperte **Super+V** para abrir o histórico no canto superior direito.
+3. Navegue e pressione **Enter** para copiar de volta (ou clique no item).
+4. Cole com **Ctrl+V** no app de destino.
+
+## Comandos da CLI
+
+| Comando                       | O que faz                                        |
+|-------------------------------|--------------------------------------------------|
+| `clipdev run`                 | Inicia o daemon (ícone na barra).                |
+| `clipdev toggle`              | Abre/fecha o popup (alvo do Super+V).            |
+| `clipdev open`                | Abre o popup.                                    |
+| `clipdev quit`                | Encerra o daemon.                                |
+| `clipdev status`              | Mostra daemon/atalho/autostart/ícone.            |
+| `clipdev clear`               | Apaga os itens **não-fixados**.                  |
+| `clipdev install-shortcut`    | Registra o atalho Super+V.                       |
+| `clipdev uninstall-shortcut`  | Remove o atalho Super+V.                         |
+| `clipdev autostart-install`   | Inicia no login.                                 |
+| `clipdev autostart-remove`    | Não inicia no login.                             |
+
+Sem argumentos, `clipdev` imprime a ajuda.
+
+## Usando o popup
+
+**Teclado**
+
+| Tecla            | Ação                     |
+|------------------|--------------------------|
+| Digitar          | Filtra/busca no histórico |
+| **↑ / ↓**        | Navega na lista          |
+| **Enter**        | Copia o item selecionado |
+| **Delete**       | Exclui o item selecionado |
+| **Esc**          | Fecha o popup            |
+
+**Mouse**
+
+- **Clique** no item → copia (depois use Ctrl+V).
+- No **hover** aparecem os botões: **estrela** (fixar/desafixar), **copiar** e
+  **excluir**.
+- **Rodapé:** `−`/`+` ajustam a fonte, **⚙** abre Preferências e **Limpar não
+  fixados** apaga o histórico não fixado.
+- O popup fecha automaticamente ao perder o foco.
+
+## Ícone na barra
+
+O ícone fica no painel superior direito. O **clique esquerdo simples sempre abre
+o menu** — é uma limitação da extensão `ubuntu-appindicators` no GNOME 42, não do
+ClipDev.
+
+- **Menu:** Abrir histórico, Preferências, Limpar não fixados, Sair.
+- Para abrir o histórico **diretamente**, use o **Super+V** ou o **duplo-clique**
+  (ou clique do meio) no ícone.
+
+## Preferências
+
+Ajuste o **tamanho da fonte** da lista (`FONT_MIN` 8px até `FONT_MAX` 20px,
+padrão 14px). Acessível pelo botão **⚙** no rodapé do popup, pelo menu do ícone
+ou pelos botões `−`/`+` do rodapé. A preferência é salva em `settings.json` e a
+altura das linhas se ajusta automaticamente.
+
+## API DBus
+
+O daemon assume o nome `io.github.clipdev.ClipDev.Control` no barramento de
+sessão, no caminho `/io/github/clipdev/ClipDev`, com a interface
+`io.github.clipdev.ClipDev`:
+
+| Método   | Ação                    |
+|----------|-------------------------|
+| `Toggle` | Abre/fecha o popup      |
+| `Open`   | Abre o popup            |
+| `Clear`  | Limpa itens não-fixados |
+| `Quit`   | Encerra o daemon        |
+
+Exemplo com `gdbus`:
+
+```bash
+gdbus call --session \
+  --dest io.github.clipdev.ClipDev.Control \
+  --object-path /io/github/clipdev/ClipDev \
+  --method io.github.clipdev.ClipDev.Toggle
+```
+
+## Onde os dados ficam
+
+Tudo em `~/.local/share/clipdev/` (ou `$XDG_DATA_HOME/clipdev`):
+
+```
+~/.local/share/clipdev/
+├── clipdev.db          # banco SQLite (histórico)
+├── settings.json       # preferências (ex.: font_size)
+└── images/
+    ├── <hash>.<ext>    # imagem original
+    └── <hash>_thumb.png # thumbnail
+```
+
+O autostart fica em `~/.config/autostart/clipdev.desktop`.
+
+### Modelo de dados (tabela `items`)
+
+| Campo        | Tipo    | Descrição                                |
+|--------------|---------|------------------------------------------|
+| `id`         | INTEGER | PK autoincrement                         |
+| `kind`       | TEXT    | `text` ou `image`                        |
+| `content`    | TEXT    | texto **ou** caminho do arquivo de imagem |
+| `preview`    | TEXT    | texto curto **ou** caminho da thumbnail  |
+| `hash`       | TEXT    | sha256 (dedup), `UNIQUE`                 |
+| `pinned`     | INTEGER | 0/1                                      |
+| `created_at` | INTEGER | epoch (ms)                               |
+| `updated_at` | INTEGER | epoch (ms)                               |
+
+## Configuração (constantes)
+
+Definidas em `clipdev/config.py`:
+
+| Constante          | Valor      | Descrição                              |
+|--------------------|------------|----------------------------------------|
+| `APP_VERSION`      | `1.1.0`    | Versão                                 |
+| `MAX_UNPINNED`     | `50`       | Máx. de itens não-fixados              |
+| `VISIBLE_ROWS`     | `15`       | Linhas visíveis sem rolar              |
+| `ROW_HEIGHT`       | `40`       | Altura da linha (px)                   |
+| `POPUP_WIDTH`      | `440`      | Largura do popup (px)                  |
+| `FONT_MIN`/`MAX`   | `8` / `20` | Faixa do tamanho de fonte              |
+| `FONT_DEFAULT`     | `14`       | Fonte padrão (px)                      |
+| `THUMB_SIZE`       | `128`      | Thumbnail armazenada (px)              |
+| `ROW_ICON_SIZE`    | `30`       | Ícone de texto na linha (px)           |
+| `ROW_THUMB_SIZE`   | `30`       | Prévia quadrada da imagem (px)         |
+| `MAX_IMAGE_BYTES`  | `10485760` | Limite de 10 MB por imagem             |
+| `COLOR_BLUE`       | `#0086FF`  | Acento/seleção                         |
+| `COLOR_YELLOW`     | `#FFC700`  | Itens fixados                          |
+| `COLOR_RED`        | `#FF3B30`  | Ação destrutiva                        |
+| `COLOR_BLACK`      | `#1D212A`  | Fundo                                  |
+
+## Estrutura do repositório
+
+```
+ClipDev/
+├── README.md
+├── .gitignore
+├── clipdev/                      # pacote principal
+│   ├── __init__.py               # expõe APP_ID/APP_NAME/APP_VERSION
+│   ├── __main__.py               # CLI (argparse) + comandos
+│   ├── app.py                    # Gtk.Application: junta tudo
+│   ├── clipboard.py              # monitor do clipboard (texto e imagem)
+│   ├── store.py                  # persistência SQLite (dedup, pin, retenção)
+│   ├── images.py                 # salva imagem + thumbnail, prévia quadrada
+│   ├── popup.py                  # janela do histórico (seções, estrela, fonte)
+│   ├── prefs.py                  # janela de preferências (tamanho da fonte)
+│   ├── indicator.py              # ícone na barra (AyatanaAppIndicator3)
+│   ├── shortcut.py               # atalho global Super+V (GSettings)
+│   ├── dbus_service.py           # controle por DBus (toggle/open/clear/quit)
+│   ├── autostart.py              # inicialização no login (.desktop)
+│   ├── config.py                 # caminhos, constantes e paleta
+│   ├── style.css                 # tema escuro
+│   └── icons/
+│       └── clipdev.svg           # ícone da barra
+├── scripts/
+│   ├── clipdev                   # launcher (fixa /usr/bin/python3.10)
+│   ├── install.sh                # instalador
+│   ├── uninstall.sh              # desinstalador
+│   ├── test.sh                   # roda a suíte de testes
+│   └── preview_popup.py          # gera PNG de preview do popup
+├── tests/                        # testes unitários (pytest, headless)
+│   ├── test_store.py             # Store: add/dedup/limpar/busca/delete
+│   ├── test_retention.py         # retenção + limpeza de arquivos de imagem
+│   ├── test_images.py            # salvar/thumbnail/prévia quadrada
+│   └── test_config.py            # preferências (load/save/clamp)
+└── docs/
+    ├── preview.png               # captura do popup
+    └── superpowers/specs/
+        └── 2026-10-16-clipdev-design.md   # spec de design
+```
+
+## Desenvolvimento e testes
+
+```bash
+./scripts/test.sh                     # roda os testes (pytest -v)
+python3.10 scripts/preview_popup.py   # gera um PNG de preview do popup
+```
+
+- Os testes rodam **headless** (sem display), usando `CLIPDEV_DATA_DIR` para
+  isolar os dados em diretório temporário.
+- Para apontar os dados para outro diretório:
+  `export CLIPDEV_DATA_DIR=/tmp/algum`.
+
+## Solução de problemas
+
+### O Super+V não funciona de imediato
 
 O GNOME (`gsd-media-keys`) às vezes não recarrega atalhos recém-criados, e um
-clipboard manager antigo (ex.: **Diodon**) pode estar segurando `<Super>v`. Nesse
-caso:
+clipboard manager antigo (ex.: **Diodon**) pode estar segurando `<Super>v`.
 
 ```bash
 # ver se outro app ocupa o Super+V
@@ -66,70 +356,38 @@ gsettings list-recursively | grep "'<Super>v'"
 killall gsd-media-keys    # o GNOME sobe de novo automaticamente
 ```
 
-## Uso
+### O ícone não aparece na barra
 
-| Comando                     | O que faz                                   |
-|-----------------------------|---------------------------------------------|
-| `clipdev run`               | inicia o daemon (ícone na barra)            |
-| `clipdev toggle`            | abre/fecha o popup (alvo do Super+V)        |
-| `clipdev status`            | mostra daemon/atalho/autostart/ícone        |
-| `clipdev clear`             | apaga os itens não-fixados                  |
-| `clipdev install-shortcut`  | registra o Super+V                          |
-| `clipdev uninstall-shortcut`| remove o Super+V                            |
-| `clipdev autostart-install` | inicia no login                             |
-| `clipdev autostart-remove`  | não inicia no login                         |
-
-No popup:
-
-- **Digitar** filtra; **↑/↓** navega; **Enter** copia; **Delete** exclui; **Esc** fecha.
-- **Clique** copia o item (depois use Ctrl+V).
-- No **hover** aparecem os botões: **estrela** (fixar/desafixar), copiar e excluir.
-- Rodapé: **−/+** ajustam a fonte, **⚙** abre Preferências e **Limpar não fixados**
-  apaga o histórico não fixado.
-
-### Sobre o clique no ícone
-
-No GNOME 42, a extensão que desenha os ícones de app (`ubuntu-appindicators`)
-**sempre abre o menu** no clique esquerdo simples — é uma limitação da extensão,
-não do ClipDev. Para abrir o histórico diretamente use o **Super+V** (ou o
-duplo-clique no ícone). O menu do ícone traz atalhos para Preferências, Limpar e
-Sair.
-
-## Estrutura
-
-```
-clipdev/            # pacote principal
-  app.py            # Gtk.Application: junta tudo
-  clipboard.py      # monitor do clipboard (texto e imagem)
-  store.py          # persistência SQLite (dedup, pin, retenção)
-  images.py         # salva imagem + thumbnail
-  popup.py          # janela do histórico (seções, estrela, fonte, rodapé)
-  prefs.py          # janela de preferências
-  indicator.py      # ícone na barra (AppIndicator)
-  shortcut.py       # atalho global Super+V (GSettings)
-  dbus_service.py   # controle por DBus (toggle/open/clear/quit)
-  autostart.py      # inicialização no login
-  style.css         # tema
-  icons/clipdev.svg # ícone
-scripts/            # clipdev (launcher), install.sh, uninstall.sh, test.sh
-tests/              # testes unitários (pytest, headless)
-docs/superpowers/specs/  # spec de design
-```
-
-## Desenvolvimento
+Confirme que o pacote e a extensão estão presentes:
 
 ```bash
-./scripts/test.sh                    # roda os testes
-python3.10 scripts/preview_popup.py  # gera um PNG de preview do popup
+sudo apt install gir1.2-ayatanaappindicator3-0.1
+clipdev status   # deve mostrar "Ícone (AppIndicator): disponível"
 ```
 
-Os dados ficam em `~/.local/share/clipdev/` (banco, imagens e `settings.json`).
-Para usar outro diretório (ex.: em testes): `export CLIPDEV_DATA_DIR=/tmp/algum`.
+Sem o typelib GIR o ícone não sobe, mas o resto do app (popup, atalho, DBus)
+continua funcionando.
+
+### `clipdev: command not found`
+
+Adicione `~/.local/bin` ao PATH (veja o passo 4 da instalação) ou chame o
+launcher diretamente: `./scripts/clipdev status`.
+
+### O `python3` do PATH quebra o `gi`
+
+Não use o `python3` do PATH — o launcher e os scripts fixam o interpretador em
+`/usr/bin/python3.10`, que é onde o PyGObject vive.
 
 ## Desinstalação
 
 ```bash
 ./scripts/uninstall.sh
-# para apagar também o histórico e as imagens:
+```
+
+Isso encerra o daemon, remove o atalho, o autostart e o comando
+`~/.local/bin/clipdev`. **Os seus dados são mantidos.** Para apagar também o
+histórico e as imagens:
+
+```bash
 rm -rf ~/.local/share/clipdev
 ```
