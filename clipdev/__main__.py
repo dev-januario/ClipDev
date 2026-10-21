@@ -54,16 +54,30 @@ def _call(method: str) -> bool:
 
 
 def _spawn_daemon() -> None:
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str(PROJECT_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     subprocess.Popen(
         [sys.executable, "-m", "clipdev", "run"],
         cwd=str(PROJECT_ROOT),
-        env=env,
+        env=_daemon_env(),
         start_new_session=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+
+def _daemon_env() -> dict:
+    """Ambiente do daemon, com o backend gráfico forçado para X11.
+
+    No Wayland nativo o GTK3 ignora ``Gtk.Window.move()`` (o compositor decide
+    a posição) — o popup abria em lugar aleatório. Além disso, o monitor de
+    clipboard do GTK3/Wayland não recebe ``owner-change`` de apps Wayland; no
+    backend X11 (XWayland) a ponte de clipboard do GNOME entrega as cópias de
+    apps nativos e o ``move()`` funciona. Por isso o daemon (GTK3) roda sempre
+    com ``GDK_BACKEND=x11``.
+    """
+    env = dict(os.environ)
+    env["GDK_BACKEND"] = "x11"
+    env["PYTHONPATH"] = str(PROJECT_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    return env
 
 
 def _daemon_running() -> bool:
@@ -92,6 +106,7 @@ def _daemon_running() -> bool:
 
 
 def cmd_run(_args) -> int:
+    os.environ["GDK_BACKEND"] = "x11"
     from clipdev.app import run
 
     return run()

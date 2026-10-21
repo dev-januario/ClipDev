@@ -3,6 +3,10 @@
 Gerenciador de área de transferência (**clipboard**) para GNOME/Ubuntu, com
 ícone na barra superior (perto do Wi‑Fi) e abertura por atalho global **Super+V**.
 
+O repositório também inclui o setup do **Flameshot** (captura de tela) na tecla
+**Print** — usando a interface própria do Flameshot, sem o seletor nativo do
+GNOME.
+
 ![tema](docs/preview.png)
 
 - **Versão:** 1.1.0
@@ -14,6 +18,7 @@ Gerenciador de área de transferência (**clipboard**) para GNOME/Ubuntu, com
 
 - [Visão geral](#visão-geral)
 - [Recursos](#recursos)
+- [Flameshot (captura de tela)](#flameshot-captura-de-tela)
 - [Requisitos](#requisitos)
 - [Instalação (passo a passo)](#instalação-passo-a-passo)
 - [Primeiros passos](#primeiros-passos)
@@ -70,6 +75,10 @@ Indicator (AyatanaAppIndicator3) ──► Menu (abrir / limpar / preferências 
 - Botão **Limpar não fixados** no rodapé.
 - Tema escuro: fundo `#1D212A`, azul `#0086FF`, fixados em amarelo `#FFC700`.
 - **Autostart** no login e controle por **DBus**.
+- Integração com o **Flameshot** na tecla **Print** (setup opcional): o
+  `scripts/flameshot-setup.sh` instala o Flameshot nativo em `~/.local` e aponta
+  o Print para ele — usando a interface própria do Flameshot, sem o seletor
+  "Captura de tela" do GNOME.
 
 ## Requisitos
 
@@ -154,6 +163,16 @@ Atalho instalado: sim
 Autostart: sim
 Ícone (AppIndicator): disponível
 ```
+
+### 7. (Opcional) Instale o Flameshot na tecla Print
+
+```bash
+./scripts/flameshot-setup.sh
+```
+
+Baixa o Flameshot **nativo** (v11) para `~/.local` e aponta a tecla **Print**
+para ele. **Requer sessão X11 (Xorg)** — no Wayland o Flameshot nativo não
+captura e cai no portal do GNOME.
 
 ## Primeiros passos
 
@@ -289,6 +308,39 @@ Definidas em `clipdev/config.py`:
 | `COLOR_RED`        | `#FF3B30`  | Ação destrutiva                        |
 | `COLOR_BLACK`      | `#1D212A`  | Fundo                                  |
 
+## Flameshot (captura de tela)
+
+O projeto inclui o setup do **Flameshot** para a tecla **Print**, gerenciado
+pelo script `scripts/flameshot-setup.sh`:
+
+```bash
+./scripts/flameshot-setup.sh
+```
+
+O que ele faz:
+
+1. Baixa o pacote `flameshot` do apt **sem instalar no sistema**.
+2. Extrai o binário para `~/.local/opt/flameshot/` e cria o launcher
+   `~/.local/bin/flameshot` (já no PATH do usuário).
+3. Aponta a tecla **Print** para `flameshot gui` (reaproveitando o binding
+   existente, se houver).
+4. Garante a precedência do Flameshot nativo (desktop file + serviço D-Bus do
+   usuário) sobre outras instalações (ex.: flatpak).
+5. Recarrega o serviço de atalhos do GNOME (`gsd-media-keys`).
+
+> **Requer sessão X11 (Xorg).** No Wayland o Flameshot nativo não captura e o
+> seletor de área fica por conta do portal do GNOME ("Captura de tela"). O
+> Flameshot **flatpak** (v14) também delega ao portal mesmo no X11 — por isso o
+> setup usa o **nativo**.
+
+Para desfazer:
+
+```bash
+rm -f ~/.local/bin/flameshot ~/.local/opt/flameshot/flameshot
+rm -f ~/.local/share/applications/org.flameshot.Flameshot.desktop
+rm -f ~/.local/share/dbus-1/services/org.flameshot.Flameshot.service
+```
+
 ## Estrutura do repositório
 
 ```
@@ -317,6 +369,7 @@ ClipDev/
 │   ├── install.sh                # instalador
 │   ├── uninstall.sh              # desinstalador
 │   ├── test.sh                   # roda a suíte de testes
+│   ├── flameshot-setup.sh        # instala o Flameshot nativo na tecla Print
 │   └── preview_popup.py          # gera PNG de preview do popup
 ├── tests/                        # testes unitários (pytest, headless)
 │   ├── test_store.py             # Store: add/dedup/limpar/busca/delete
@@ -377,6 +430,22 @@ launcher diretamente: `./scripts/clipdev status`.
 
 Não use o `python3` do PATH — o launcher e os scripts fixam o interpretador em
 `/usr/bin/python3.10`, que é onde o PyGObject vive.
+
+### O Print abre o "Captura de tela" do GNOME em vez do Flameshot
+
+Causas prováveis:
+
+- Sessão **Wayland**: o Flameshot nativo não captura e o GNOME assume o Print.
+  Troque para "Ubuntu on Xorg" na tela de login.
+- Comando do Print apontando para o **flatpak** do Flameshot (v14), que delega a
+  captura ao portal do GNOME mesmo no X11.
+
+Solução: rode `./scripts/flameshot-setup.sh` na sessão X11 e confira o comando:
+
+```bash
+gsettings get org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ command
+# esperado: 'flameshot gui'
+```
 
 ## Desinstalação
 

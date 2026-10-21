@@ -38,6 +38,29 @@ from . import config, images, store as st  # noqa: E402
 CopyCallback = Callable[[Dict], None]
 
 
+def resolve_workarea(display) -> Optional[object]:
+    """Resolve a workarea do monitor onde o popup deve aparecer.
+
+    No X11, ``display.get_primary_monitor()`` devolve o monitor primário. No
+    Wayland nativo esse conceito não existe e o método devolve ``None`` — o
+    código antigo quebrava com ``AttributeError: 'NoneType' object has no
+    attribute 'get_workarea'``, fazendo o popup nunca abrir ao apertar
+    Super+V. Aqui caímos para ``get_monitor(0)`` (o primeiro monitor) e, sem
+    nenhum monitor, retornamos ``None`` (o chamador não posiciona).
+
+    Retorna um objeto com o layout de ``Gdk.Rectangle`` (x/y/width/height) ou
+    ``None``.
+    """
+    if display is None:
+        return None
+    monitor = display.get_primary_monitor()
+    if monitor is None and display.get_n_monitors() > 0:
+        monitor = display.get_monitor(0)
+    if monitor is None:
+        return None
+    return monitor.get_workarea()
+
+
 def present_focused(window: "Gtk.Window") -> bool:
     """Mostra ``window`` pedindo o foco de teclado explicitamente.
 
@@ -246,10 +269,9 @@ class Popup(Gtk.Window):
 
     def _position(self) -> None:
         display = Gdk.Display.get_default()
-        if display is None:
+        geo = resolve_workarea(display)
+        if geo is None:
             return
-        monitor = display.get_primary_monitor()
-        geo = monitor.get_workarea()
         win_w, win_h = self.get_size()
         if win_w <= 1:
             win_w = config.POPUP_WIDTH
