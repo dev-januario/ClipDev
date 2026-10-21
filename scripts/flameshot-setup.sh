@@ -9,13 +9,16 @@
 # do gnome"), mesmo no X11 — por isso este script NÃO usa o flatpak.
 #
 # O que ele faz:
-#   1) Baixa o pacote "flameshot" do apt (sem instalar no sistema).
+#   1) Verifica se o flameshot está instalado; se não, baixa o pacote
+#      "flameshot" do apt (sem instalar no sistema) e extrai o binário.
 #   2) Extrai o binário para ~/.local/opt/flameshot/.
 #   3) Cria o launcher ~/.local/bin/flameshot (PATH do usuário).
 #   4) Aponta o keybinding do Print para "flameshot gui".
 #   5) Cria desktop file + serviço D-Bus do usuário para o flameshot nativo
 #      ter precedência sobre qualquer outra instalação (ex.: flatpak).
-#   6) Recarrega o serviço de atalhos do GNOME (gsd-media-keys).
+#   6) Instala os ícones em ~/.local/share/icons (para o flameshot aparecer
+#      no grid de aplicativos) e atualiza os caches do GNOME.
+#   7) Recarrega o serviço de atalhos do GNOME (gsd-media-keys).
 #
 # USO (não precisa de sudo):
 #   ./scripts/flameshot-setup.sh
@@ -45,41 +48,91 @@ if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
   exit 1
 fi
 
-# 1) Baixa e extrai o pacote (sem instalar no sistema)
+# 1) Garante o binário do flameshot (baixa e extrai só se não estiver OK)
 echo
-echo "[1/6] Baixando o pacote flameshot (apt download)..."
-(cd "$TMP_DIR" && apt download flameshot >/dev/null 2>&1)
-DEB=$(ls "$TMP_DIR"/flameshot_*.deb 2>/dev/null | head -1)
-if [ -z "$DEB" ]; then
-  echo "!! Não consegui baixar o pacote flameshot. Verifique sua rede/apt."
-  exit 1
+LOCAL_BIN="$OPT_DIR/flameshot"
+INSTALLED=0
+if [ -x "$LOCAL_BIN" ] && "$LOCAL_BIN" --version >/dev/null 2>&1; then
+  echo "[1/7] flameshot já instalado em $OPT_DIR (ok, mantendo)."
+  INSTALLED=1
+else
+  echo "[1/7] flameshot não encontrado — instalando a versão correta ..."
 fi
-echo "      pacote: $(basename "$DEB")"
 
-echo "[2/6] Extraindo para $OPT_DIR ..."
-mkdir -p "$OPT_DIR"
-dpkg-deb -x "$DEB" "$TMP_DIR/extracted"
-cp -f "$TMP_DIR/extracted/usr/bin/flameshot" "$OPT_DIR/flameshot"
-chmod +x "$OPT_DIR/flameshot"
-mkdir -p "$OPT_DIR/share"
-if [ -d "$TMP_DIR/extracted/usr/share/flameshot/translations" ]; then
-  cp -rf "$TMP_DIR/extracted/usr/share/flameshot/translations" "$OPT_DIR/share/"
+ICONS_OK=0
+if [ -f "$HOME/.local/share/icons/hicolor/scalable/apps/org.flameshot.Flameshot.svg" ]; then
+  ICONS_OK=1
+fi
+
+if [ "$INSTALLED" -eq 0 ] || [ "$ICONS_OK" -eq 0 ]; then
+  echo "      baixando o pacote flameshot (apt download)..."
+  (cd "$TMP_DIR" && apt download flameshot >/dev/null 2>&1)
+  DEB=$(ls "$TMP_DIR"/flameshot_*.deb 2>/dev/null | head -1)
+  if [ -z "$DEB" ]; then
+    echo "!! Não consegui baixar o pacote flameshot. Verifique sua rede/apt."
+    exit 1
+  fi
+  echo "      pacote: $(basename "$DEB")"
+  dpkg-deb -x "$DEB" "$TMP_DIR/extracted"
+fi
+
+if [ "$INSTALLED" -eq 0 ]; then
+  echo "[2/7] Extraindo para $OPT_DIR ..."
+  mkdir -p "$OPT_DIR"
+  cp -f "$TMP_DIR/extracted/usr/bin/flameshot" "$LOCAL_BIN"
+  chmod +x "$LOCAL_BIN"
+  mkdir -p "$OPT_DIR/share"
+  if [ -d "$TMP_DIR/extracted/usr/share/flameshot/translations" ]; then
+    cp -rf "$TMP_DIR/extracted/usr/share/flameshot/translations" "$OPT_DIR/share/"
+  fi
+fi
+
+if [ "$ICONS_OK" -eq 0 ]; then
+  echo "      instalando ícones em ~/.local/share/icons ..."
+  mkdir -p "$HOME/.local/share/icons"
+  cp -rf "$TMP_DIR/extracted/usr/share/icons/hicolor" "$HOME/.local/share/icons/"
+  # index.theme é obrigatório para o GTK reconhecer o tema hicolor local
+  if [ ! -f "$HOME/.local/share/icons/hicolor/index.theme" ]; then
+    cat > "$HOME/.local/share/icons/hicolor/index.theme" << 'EOT'
+[Icon Theme]
+Name=Hicolor
+Comment=Fallback icon theme
+Directories=128x128/apps,48x48/apps,scalable/apps
+
+[128x128/apps]
+Size=128
+Context=Applications
+Type=Threshold
+
+[48x48/apps]
+Size=48
+Context=Applications
+Type=Threshold
+
+[scalable/apps]
+Size=128
+Context=Applications
+Type=Scalable
+EOT
+  fi
+  gtk-update-icon-cache -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+  update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 fi
 
 # 2) Launcher no PATH do usuário
-echo "[3/6] Criando launcher $BIN_DIR/flameshot ..."
+echo "[3/7] Criando launcher $BIN_DIR/flameshot ..."
 mkdir -p "$BIN_DIR"
 cat > "$BIN_DIR/flameshot" << EOS
 #!/usr/bin/env bash
 # Launcher do Flameshot (extraído em ~/.local/opt/flameshot).
-exec "$OPT_DIR/flameshot" "\$@"
+exec "$LOCAL_BIN" "\$@"
 EOS
 chmod +x "$BIN_DIR/flameshot"
 
 # 3) Keybinding do Print
 # Reaproveita um binding que já exista com a tecla Print (ex.: custom0);
 # só cria o caminho novo se não houver nenhum. Evita dois bindings no Print.
-echo "[4/6] Apontando a tecla Print para 'flameshot gui' ..."
+echo "[4/7] Apontando a tecla Print para 'flameshot gui' ..."
 MEDIA_SCHEMA="org.gnome.settings-daemon.plugins.media-keys"
 EXISTING_PATH=""
 RAW=$(gsettings get "$MEDIA_SCHEMA" custom-keybindings 2>/dev/null)
@@ -114,7 +167,7 @@ else
 fi
 
 # 4) Precedência do nativo sobre outras instalações (desktop + D-Bus)
-echo "[5/6] Garantindo precedência do flameshot nativo ..."
+echo "[5/7] Garantindo precedência do flameshot nativo ..."
 mkdir -p "$HOME/.local/share/applications" "$HOME/.local/share/dbus-1/services"
 cat > "$HOME/.local/share/applications/org.flameshot.Flameshot.desktop" << 'EOD'
 [Desktop Entry]
@@ -141,11 +194,36 @@ Exec=flameshot launcher
 EOD
 printf '[D-BUS Service]\nName=org.flameshot.Flameshot\nExec=%s\n' "$BIN_DIR/flameshot" > "$HOME/.local/share/dbus-1/services/org.flameshot.Flameshot.service"
 
-# 5) Recarrega o serviço de atalhos
-echo "[6/6] Recarregando serviço de atalhos (gsd-media-keys) ..."
+# 5) Recarrega o serviço de atalhos do GNOME.
+# NÃO usar `killall gsd-media-keys`: a unidade é estática e o systemd recusa
+# start manual (RefuseManualStart), então o killall derruba o serviço e ele
+# NÃO volta sozinho — o Print fica morto até o próximo login.
+# O método seguro é um override temporário que libera o start manual.
+echo "[6/7] Recarregando serviço de atalhos (gsd-media-keys) ..."
+GSDSVC="org.gnome.SettingsDaemon.MediaKeys.service"
+OVERRIDE_DIR="$HOME/.config/systemd/user/${GSDSVC}.d"
+if systemctl --user is-active "$GSDSVC" >/dev/null 2>&1; then
+  try_restart=1
+else
+  try_restart=1
+  # já está parado: limpa o estado de falha para permitir start
+  systemctl --user reset-failed "$GSDSVC" 2>/dev/null || true
+fi
+if [ "${try_restart:-0}" -eq 1 ]; then
+  mkdir -p "$OVERRIDE_DIR"
+  printf '[Unit]\nRefuseManualStart=no\nRefuseManualStop=no\n' > "$OVERRIDE_DIR/override.conf"
+  systemctl --user daemon-reload
+  systemctl --user restart "$GSDSVC" 2>/dev/null || \
+    systemctl --user start "$GSDSVC" 2>/dev/null || true
+  rm -rf "$OVERRIDE_DIR"
+  systemctl --user daemon-reload 2>/dev/null || true
+fi
+# confirma que subiu; se não, informa (o atalho pega no próximo login)
 if pgrep -x gsd-media-keys >/dev/null 2>&1; then
-  killall gsd-media-keys 2>/dev/null || true
-  sleep 1
+  echo "      serviço de atalhos recarregado (gsd-media-keys ativo)."
+else
+  echo "      ! serviço de atalhos não está ativo; faça logout/login para"
+  echo "        os atalhos voltarem a funcionar."
 fi
 
 rm -rf "$TMP_DIR"
