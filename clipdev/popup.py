@@ -27,9 +27,54 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 
+try:  # GdkX11 só existe em sessões X11 (alvo do projeto)
+    gi.require_version("GdkX11", "3.0")
+    from gi.repository import GdkX11  # noqa: E402
+except (ValueError, ImportError):  # pragma: no cover - Wayland/sem X11
+    GdkX11 = None  # type: ignore[assignment]
+
 from . import config, images, store as st  # noqa: E402
 
 CopyCallback = Callable[[Dict], None]
+
+
+def present_focused(window: "Gtk.Window") -> bool:
+    """Mostra ``window`` pedindo o foco de teclado explicitamente.
+
+    Por que isto é necessário (e não basta ``window.present()``):
+
+    * O popup usa type hint ``POPUP_MENU``. No Mutter (GNOME 42),
+      ``window_state_on_map()`` força ``takes_focus = FALSE`` para esse tipo —
+      ou seja, o WM **nunca** dá foco de teclado a ele ao mapear.
+    * Numa reexibição o WM também não foca sozinho: só tenta focar quando a
+      janela é mostrada pela primeira vez (``showing_for_first_time``). Como o
+      ClipDev cria a janela uma vez e faz hide/show no toggle, isso nunca se
+      aplica.
+    * O ``present()`` do GTK envia ``_NET_ACTIVE_WINDOW`` com o *user-time*
+      antigo do processo (``gdk_x11_display_get_user_time()``). Se o usuário
+      interagiu em outra janela depois disso, o Mutter rejeita o pedido por
+      *focus-stealing prevention* (``timestamp < last_user_time``), marca o
+      popup com ``_NET_WM_STATE_DEMANDS_ATTENTION`` e deixa o foco onde estava.
+      Era por isso que ↑/↓/Enter iam para outra janela.
+
+    Pedimos a ativação com um timestamp **fresco** do servidor X
+    (``GdkX11.x11_get_server_time``), que é mais recente que o último evento do
+    usuário e por isso é aceito pelo Mutter. Se o ``GdkX11`` não estiver
+    disponível (ex.: sessão Wayland), caímos no ``present()`` normal.
+
+    Retorna ``True`` se usou o caminho com timestamp fresco.
+    """
+    win = window.get_window()
+    if GdkX11 is not None and win is not None:
+        try:
+            timestamp = GdkX11.x11_get_server_time(win)
+        except Exception:
+            timestamp = None
+        if timestamp:
+            window.present_with_time(timestamp)
+            return True
+    window.present()
+    return False
 
 
 class Popup(Gtk.Window):
@@ -193,8 +238,11 @@ class Popup(Gtk.Window):
         self.show_all()
         self.search.set_text("")
         self._select_first()
-        self.present()
+        self._present_focused()
         GLib.idle_add(lambda: self.search.grab_focus() or False)
+
+    def _present_focused(self) -> None:
+        present_focused(self)
 
     def _position(self) -> None:
         display = Gdk.Display.get_default()
